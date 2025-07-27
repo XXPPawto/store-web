@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Star } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 import { toast } from "sonner"
 
 interface TestimonialFormProps {
@@ -28,6 +28,11 @@ export function TestimonialForm({ onSuccess }: TestimonialFormProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!supabase) {
+      toast.error("Database connection not available")
+      return
+    }
+
     if (!formData.username || !formData.item_bought || !formData.message || formData.rating === 0) {
       toast.error("Please fill in all fields and select a rating")
       return
@@ -36,18 +41,25 @@ export function TestimonialForm({ onSuccess }: TestimonialFormProps) {
     setLoading(true)
 
     try {
-      const { error } = await supabase.from("testimonials").insert([
-        {
-          username: formData.username,
-          rating: formData.rating,
-          item_bought: formData.item_bought,
-          message: formData.message,
-          approved: false,
-        },
-      ])
+      const testimonialData = {
+        username: formData.username.trim(),
+        rating: formData.rating,
+        item_bought: formData.item_bought.trim(),
+        message: formData.message.trim(),
+        approved: false,
+      }
 
-      if (error) throw error
+      console.log("Submitting testimonial:", testimonialData)
 
+      const { data, error } = await supabase.from("testimonials").insert([testimonialData]).select()
+
+      if (error) {
+        console.error("Insert error:", error)
+        toast.error("Failed to submit testimonial: " + error.message)
+        return
+      }
+
+      console.log("Insert successful:", data)
       toast.success("Testimonial submitted! It will be reviewed by admin.")
       setFormData({ username: "", rating: 0, item_bought: "", message: "" })
       onSuccess()
@@ -71,6 +83,16 @@ export function TestimonialForm({ onSuccess }: TestimonialFormProps) {
     ))
   }
 
+  if (!isSupabaseConfigured) {
+    return (
+      <Card className="max-w-2xl mx-auto">
+        <CardContent className="p-6">
+          <p className="text-red-500 text-center">Database connection not available</p>
+        </CardContent>
+      </Card>
+    )
+  }
+
   return (
     <Card className="max-w-2xl mx-auto">
       <CardHeader>
@@ -79,38 +101,42 @@ export function TestimonialForm({ onSuccess }: TestimonialFormProps) {
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="username">Roblox Username</Label>
+            <Label htmlFor="username">Roblox Username *</Label>
             <Input
               id="username"
               value={formData.username}
               onChange={(e) => setFormData({ ...formData, username: e.target.value })}
               placeholder="Your Roblox username"
+              required
             />
           </div>
 
           <div>
-            <Label>Rating</Label>
+            <Label>Rating *</Label>
             <div className="flex space-x-1 mt-1">{renderStars()}</div>
+            {formData.rating === 0 && <p className="text-sm text-red-500 mt-1">Please select a rating</p>}
           </div>
 
           <div>
-            <Label htmlFor="item_bought">Item Bought</Label>
+            <Label htmlFor="item_bought">Item Bought *</Label>
             <Input
               id="item_bought"
               value={formData.item_bought}
               onChange={(e) => setFormData({ ...formData, item_bought: e.target.value })}
               placeholder="What pet did you buy?"
+              required
             />
           </div>
 
           <div>
-            <Label htmlFor="message">Message</Label>
+            <Label htmlFor="message">Message *</Label>
             <Textarea
               id="message"
               value={formData.message}
               onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               placeholder="Share your experience..."
               rows={4}
+              required
             />
           </div>
 

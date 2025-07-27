@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Pencil, Trash2, Plus } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 import { toast } from "sonner"
 
 interface Product {
@@ -38,6 +38,7 @@ export function ProductManagement() {
   const [categories, setCategories] = useState<Category[]>([])
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+  const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -48,25 +49,35 @@ export function ProductManagement() {
   })
 
   useEffect(() => {
-    fetchProducts()
-    fetchCategories()
+    if (isSupabaseConfigured) {
+      fetchProducts()
+      fetchCategories()
+    }
   }, [])
 
   const fetchProducts = async () => {
+    if (!supabase) return
+
     try {
-      // Fetch products and categories separately
       const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select("*")
         .order("created_at", { ascending: false })
 
-      if (productsError) throw productsError
+      if (productsError) {
+        console.error("Products error:", productsError)
+        toast.error("Failed to fetch products: " + productsError.message)
+        return
+      }
 
       const { data: categoriesData, error: categoriesError } = await supabase.from("categories").select("*")
 
-      if (categoriesError) throw categoriesError
+      if (categoriesError) {
+        console.error("Categories error:", categoriesError)
+        toast.error("Failed to fetch categories: " + categoriesError.message)
+        return
+      }
 
-      // Create a map of category IDs to category names
       const categoryMap =
         categoriesData?.reduce(
           (acc, category) => {
@@ -76,7 +87,6 @@ export function ProductManagement() {
           {} as Record<string, string>,
         ) || {}
 
-      // Combine the data
       const productsWithCategories =
         productsData?.map((product) => ({
           ...product,
@@ -88,58 +98,92 @@ export function ProductManagement() {
       setProducts(productsWithCategories)
     } catch (error) {
       console.error("Error fetching products:", error)
-      setProducts([])
+      toast.error("Failed to fetch products")
     }
   }
 
   const fetchCategories = async () => {
+    if (!supabase) return
+
     try {
       const { data, error } = await supabase.from("categories").select("*")
 
-      if (error) throw error
+      if (error) {
+        console.error("Categories fetch error:", error)
+        toast.error("Failed to fetch categories: " + error.message)
+        return
+      }
+
       setCategories(data || [])
     } catch (error) {
       console.error("Error fetching categories:", error)
+      toast.error("Failed to fetch categories")
     }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
+    if (!supabase) {
+      toast.error("Database connection not available")
+      return
+    }
+
     if (!formData.name || !formData.price || !formData.category_id || !formData.stock) {
       toast.error("Please fill in all required fields")
       return
     }
 
+    setLoading(true)
+
     try {
       const productData = {
         name: formData.name,
         price: Number.parseFloat(formData.price),
-        image_url: formData.image_url,
+        image_url: formData.image_url || null,
         category_id: formData.category_id,
         stock: Number.parseInt(formData.stock),
-        description: formData.description,
+        description: formData.description || null,
       }
 
-      if (editingProduct) {
-        const { error } = await supabase.from("products").update(productData).eq("id", editingProduct.id)
+      console.log("Submitting product data:", productData)
 
-        if (error) throw error
+      if (editingProduct) {
+        const { data, error } = await supabase.from("products").update(productData).eq("id", editingProduct.id).select()
+
+        if (error) {
+          console.error("Update error:", error)
+          toast.error("Failed to update product: " + error.message)
+          return
+        }
+
+        console.log("Update successful:", data)
         toast.success("Product updated successfully!")
       } else {
-        const { error } = await supabase.from("products").insert([productData])
+        const { data, error } = await supabase.from("products").insert([productData]).select()
 
-        if (error) throw error
+        if (error) {
+          console.error("Insert error:", error)
+          toast.error("Failed to add product: " + error.message)
+          return
+        }
+
+        console.log("Insert successful:", data)
         toast.success("Product added successfully!")
       }
 
+      // Reset form
       setFormData({ name: "", price: "", image_url: "", category_id: "", stock: "", description: "" })
       setEditingProduct(null)
       setShowForm(false)
-      fetchProducts()
+
+      // Refresh products list
+      await fetchProducts()
     } catch (error) {
       console.error("Error saving product:", error)
       toast.error("Failed to save product")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -148,27 +192,51 @@ export function ProductManagement() {
     setFormData({
       name: product.name,
       price: product.price.toString(),
-      image_url: product.image_url,
+      image_url: product.image_url || "",
       category_id: product.category_id,
       stock: product.stock.toString(),
-      description: product.description,
+      description: product.description || "",
     })
     setShowForm(true)
   }
 
   const handleDelete = async (id: string) => {
+    if (!supabase) {
+      toast.error("Database connection not available")
+      return
+    }
+
     if (!confirm("Are you sure you want to delete this product?")) return
 
     try {
       const { error } = await supabase.from("products").delete().eq("id", id)
 
-      if (error) throw error
+      if (error) {
+        console.error("Delete error:", error)
+        toast.error("Failed to delete product: " + error.message)
+        return
+      }
+
       toast.success("Product deleted successfully!")
-      fetchProducts()
+      await fetchProducts()
     } catch (error) {
       console.error("Error deleting product:", error)
       toast.error("Failed to delete product")
     }
+  }
+
+  const handleCancel = () => {
+    setFormData({ name: "", price: "", image_url: "", category_id: "", stock: "", description: "" })
+    setEditingProduct(null)
+    setShowForm(false)
+  }
+
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500">Database connection not configured</p>
+      </div>
+    )
   }
 
   return (
@@ -196,6 +264,7 @@ export function ProductManagement() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Enter product name"
+                    required
                   />
                 </div>
                 <div>
@@ -206,6 +275,7 @@ export function ProductManagement() {
                     value={formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                     placeholder="Enter price"
+                    required
                   />
                 </div>
                 <div>
@@ -213,6 +283,7 @@ export function ProductManagement() {
                   <Select
                     value={formData.category_id}
                     onValueChange={(value) => setFormData({ ...formData, category_id: value })}
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
@@ -234,6 +305,7 @@ export function ProductManagement() {
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     placeholder="Enter stock quantity"
+                    required
                   />
                 </div>
               </div>
@@ -256,7 +328,14 @@ export function ProductManagement() {
                   rows={3}
                 />
               </div>
-              <Button type="submit">{editingProduct ? "Update Product" : "Add Product"}</Button>
+              <div className="flex space-x-2">
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Saving..." : editingProduct ? "Update Product" : "Add Product"}
+                </Button>
+                <Button type="button" variant="outline" onClick={handleCancel}>
+                  Cancel
+                </Button>
+              </div>
             </form>
           </CardContent>
         </Card>
@@ -264,44 +343,48 @@ export function ProductManagement() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Products List</CardTitle>
+          <CardTitle>Products List ({products.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{product.categories.name}</Badge>
-                  </TableCell>
-                  <TableCell>Rp {product.price.toLocaleString("id-ID")}</TableCell>
-                  <TableCell>
-                    <Badge variant={product.stock > 0 ? "default" : "destructive"}>{product.stock}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(product)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(product.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+          {products.length === 0 ? (
+            <p className="text-center text-muted-foreground py-4">No products found</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Price</TableHead>
+                  <TableHead>Stock</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {products.map((product) => (
+                  <TableRow key={product.id}>
+                    <TableCell className="font-medium">{product.name}</TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{product.categories.name}</Badge>
+                    </TableCell>
+                    <TableCell>Rp {product.price.toLocaleString("id-ID")}</TableCell>
+                    <TableCell>
+                      <Badge variant={product.stock > 0 ? "default" : "destructive"}>{product.stock}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm" onClick={() => handleEdit(product)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => handleDelete(product.id)}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
