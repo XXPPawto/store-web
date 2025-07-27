@@ -13,6 +13,7 @@ interface Product {
   category_id: string
   stock: number
   description: string
+  is_available?: boolean
   categories: {
     name: string
   }
@@ -52,11 +53,25 @@ export function ProductGrid() {
     try {
       setError(null)
 
-      const { data: productsData, error: productsError } = await supabase
-        .from("products")
-        .select("*")
-        .gt("stock", 0)
-        .order("created_at", { ascending: false })
+      // First, try to fetch with is_available column
+      let productsData, productsError
+
+      try {
+        const result = await supabase
+          .from("products")
+          .select("*, is_available")
+          .order("created_at", { ascending: false })
+
+        productsData = result.data
+        productsError = result.error
+      } catch (columnError) {
+        // If is_available column doesn't exist, fetch without it
+        console.log("is_available column not found, fetching without it")
+        const result = await supabase.from("products").select("*").order("created_at", { ascending: false })
+
+        productsData = result.data
+        productsError = result.error
+      }
 
       if (productsError) throw productsError
 
@@ -76,12 +91,16 @@ export function ProductGrid() {
       const productsWithCategories =
         productsData?.map((product) => ({
           ...product,
+          is_available: product.is_available ?? true, // Default to true if column doesn't exist
           categories: {
             name: categoryMap[product.category_id] || "Unknown",
           },
         })) || []
 
-      setProducts(productsWithCategories)
+      // Only filter out disabled products (is_available = false), but keep sold out products (stock = 0)
+      const visibleProducts = productsWithCategories.filter((product) => product.is_available !== false)
+
+      setProducts(visibleProducts)
     } catch (error) {
       console.error("Error fetching products:", error)
       setError("Failed to load products. Please check your configuration.")
@@ -136,6 +155,7 @@ export function ProductGrid() {
         categories={categories}
         selectedCategory={selectedCategory}
         onCategoryChange={setSelectedCategory}
+        products={products}
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

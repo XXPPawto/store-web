@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { Pencil, Trash2, Plus, Upload, X } from "lucide-react"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 import { toast } from "sonner"
@@ -24,6 +25,7 @@ interface Product {
   category_id: string
   stock: number
   description: string
+  is_available?: boolean
   categories: {
     name: string
   }
@@ -43,6 +45,7 @@ export function ProductManagement() {
   const [uploadingImage, setUploadingImage] = useState(false)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>("")
+  const [hasAvailabilityColumn, setHasAvailabilityColumn] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -50,23 +53,63 @@ export function ProductManagement() {
     category_id: "",
     stock: "",
     description: "",
+    is_available: true,
   })
 
   useEffect(() => {
     if (isSupabaseConfigured) {
+      checkAvailabilityColumn()
       fetchProducts()
       fetchCategories()
     }
   }, [])
 
+  const checkAvailabilityColumn = async () => {
+    if (!supabase) return
+
+    try {
+      // Try to select is_available column to check if it exists
+      const { error } = await supabase.from("products").select("is_available").limit(1)
+
+      if (!error) {
+        setHasAvailabilityColumn(true)
+      } else {
+        console.log("is_available column not found")
+        setHasAvailabilityColumn(false)
+      }
+    } catch (error) {
+      console.log("is_available column not found")
+      setHasAvailabilityColumn(false)
+    }
+  }
+
   const fetchProducts = async () => {
     if (!supabase) return
 
     try {
-      const { data: productsData, error: productsError } = await supabase
-        .from("products")
-        .select("*")
-        .order("created_at", { ascending: false })
+      // Try to fetch with is_available column first
+      let productsData, productsError
+
+      try {
+        const result = await supabase
+          .from("products")
+          .select("*, is_available")
+          .order("created_at", { ascending: false })
+
+        productsData = result.data
+        productsError = result.error
+
+        if (!productsError) {
+          setHasAvailabilityColumn(true)
+        }
+      } catch (columnError) {
+        // If is_available column doesn't exist, fetch without it
+        const result = await supabase.from("products").select("*").order("created_at", { ascending: false })
+
+        productsData = result.data
+        productsError = result.error
+        setHasAvailabilityColumn(false)
+      }
 
       if (productsError) {
         console.error("Products error:", productsError)
@@ -94,6 +137,7 @@ export function ProductManagement() {
       const productsWithCategories =
         productsData?.map((product) => ({
           ...product,
+          is_available: product.is_available ?? true, // Default to true if column doesn't exist
           categories: {
             name: categoryMap[product.category_id] || "Unknown",
           },
@@ -129,13 +173,11 @@ export function ProductManagement() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith("image/")) {
       toast.error("Please select an image file")
       return
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error("Image size should be less than 5MB")
       return
@@ -143,7 +185,6 @@ export function ProductManagement() {
 
     setSelectedImage(file)
 
-    // Create preview
     const reader = new FileReader()
     reader.onload = (e) => {
       setImagePreview(e.target?.result as string)
@@ -187,7 +228,6 @@ export function ProductManagement() {
     try {
       let imageUrl = formData.image_url
 
-      // Upload new image if selected
       if (selectedImage) {
         setUploadingImage(true)
         try {
@@ -201,7 +241,7 @@ export function ProductManagement() {
         }
       }
 
-      const productData = {
+      const baseProductData = {
         name: formData.name,
         price: Number.parseFloat(formData.price),
         image_url: imageUrl || "/placeholder.svg?height=300&width=300",
@@ -209,6 +249,11 @@ export function ProductManagement() {
         stock: Number.parseInt(formData.stock),
         description: formData.description || null,
       }
+
+      // Only include is_available if the column exists
+      const productData = hasAvailabilityColumn
+        ? { ...baseProductData, is_available: formData.is_available }
+        : baseProductData
 
       console.log("Submitting product data:", productData)
 
@@ -236,14 +281,20 @@ export function ProductManagement() {
         toast.success("Product added successfully!")
       }
 
-      // Reset form
-      setFormData({ name: "", price: "", image_url: "", category_id: "", stock: "", description: "" })
+      setFormData({
+        name: "",
+        price: "",
+        image_url: "",
+        category_id: "",
+        stock: "",
+        description: "",
+        is_available: true,
+      })
       setSelectedImage(null)
       setImagePreview("")
       setEditingProduct(null)
       setShowForm(false)
 
-      // Refresh products list
       await fetchProducts()
     } catch (error) {
       console.error("Error saving product:", error)
@@ -262,10 +313,57 @@ export function ProductManagement() {
       category_id: product.category_id,
       stock: product.stock.toString(),
       description: product.description || "",
+      is_available: product.is_available ?? true,
     })
     setImagePreview(product.image_url || "")
     setSelectedImage(null)
     setShowForm(true)
+  }
+
+  const handleQuickStockUpdate = async (productId: string, newStock: number) => {
+    if (!supabase) return
+
+    try {
+      const { error } = await supabase.from("products").update({ stock: newStock }).eq("id", productId)
+
+      if (error) {
+        console.error("Stock update error:", error)
+        toast.error("Failed to update stock: " + error.message)
+        return
+      }
+
+      toast.success("Stock updated successfully!")
+      await fetchProducts()
+    } catch (error) {
+      console.error("Error updating stock:", error)
+      toast.error("Failed to update stock")
+    }
+  }
+
+  const handleAvailabilityToggle = async (productId: string, currentAvailability: boolean) => {
+    if (!supabase || !hasAvailabilityColumn) {
+      toast.error("Availability feature not available. Please add the is_available column to your database.")
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from("products")
+        .update({ is_available: !currentAvailability })
+        .eq("id", productId)
+
+      if (error) {
+        console.error("Availability update error:", error)
+        toast.error("Failed to update availability: " + error.message)
+        return
+      }
+
+      toast.success(`Product ${!currentAvailability ? "enabled" : "disabled"} successfully!`)
+      await fetchProducts()
+    } catch (error) {
+      console.error("Error updating availability:", error)
+      toast.error("Failed to update availability")
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -294,7 +392,7 @@ export function ProductManagement() {
   }
 
   const handleCancel = () => {
-    setFormData({ name: "", price: "", image_url: "", category_id: "", stock: "", description: "" })
+    setFormData({ name: "", price: "", image_url: "", category_id: "", stock: "", description: "", is_available: true })
     setSelectedImage(null)
     setImagePreview("")
     setEditingProduct(null)
@@ -305,6 +403,13 @@ export function ProductManagement() {
     setSelectedImage(null)
     setImagePreview("")
     setFormData({ ...formData, image_url: "" })
+  }
+
+  const getStockStatus = (stock: number, isAvailable?: boolean) => {
+    if (hasAvailabilityColumn && isAvailable === false) return { label: "Disabled", variant: "secondary" as const }
+    if (stock === 0) return { label: "Sold Out", variant: "destructive" as const }
+    if (stock <= 5) return { label: `Low Stock (${stock})`, variant: "secondary" as const }
+    return { label: `In Stock (${stock})`, variant: "default" as const }
   }
 
   if (!isSupabaseConfigured) {
@@ -324,6 +429,21 @@ export function ProductManagement() {
           {showForm ? "Cancel" : "Add Product"}
         </Button>
       </div>
+
+      {!hasAvailabilityColumn && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="p-4">
+            <p className="text-yellow-800 text-sm">
+              <strong>Note:</strong> To enable product availability controls, run this SQL command in your Supabase
+              dashboard:
+              <br />
+              <code className="bg-yellow-100 px-2 py-1 rounded mt-2 inline-block">
+                ALTER TABLE products ADD COLUMN is_available BOOLEAN DEFAULT true;
+              </code>
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {showForm && (
         <Card>
@@ -378,6 +498,7 @@ export function ProductManagement() {
                   <Input
                     id="stock"
                     type="number"
+                    min="0"
                     value={formData.stock}
                     onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
                     placeholder="Enter stock quantity"
@@ -386,11 +507,22 @@ export function ProductManagement() {
                 </div>
               </div>
 
+              {/* Availability Toggle - only show if column exists */}
+              {hasAvailabilityColumn && (
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="is_available"
+                    checked={formData.is_available}
+                    onCheckedChange={(checked) => setFormData({ ...formData, is_available: checked })}
+                  />
+                  <Label htmlFor="is_available">Product Available for Sale</Label>
+                </div>
+              )}
+
               {/* Image Upload Section */}
               <div>
                 <Label htmlFor="image">Product Image</Label>
                 <div className="mt-2 space-y-4">
-                  {/* Image Preview */}
                   {imagePreview && (
                     <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
                       <Image src={imagePreview || "/placeholder.svg"} alt="Preview" fill className="object-cover" />
@@ -406,7 +538,6 @@ export function ProductManagement() {
                     </div>
                   )}
 
-                  {/* File Input */}
                   <div className="flex items-center space-x-2">
                     <Input id="image" type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
                     <Button
@@ -468,42 +599,75 @@ export function ProductManagement() {
                   <TableHead>Category</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Stock</TableHead>
+                  <TableHead>Status</TableHead>
+                  {hasAvailabilityColumn && <TableHead>Available</TableHead>}
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      <div className="relative w-12 h-12 rounded overflow-hidden">
-                        <Image
-                          src={product.image_url || "/placeholder.svg?height=48&width=48&query=pet"}
-                          alt={product.name}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{product.categories.name}</Badge>
-                    </TableCell>
-                    <TableCell>Rp {product.price.toLocaleString("id-ID")}</TableCell>
-                    <TableCell>
-                      <Badge variant={product.stock > 0 ? "default" : "destructive"}>{product.stock}</Badge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(product)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleDelete(product.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {products.map((product) => {
+                  const stockStatus = getStockStatus(product.stock, product.is_available)
+                  return (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <div className="relative w-12 h-12 rounded overflow-hidden">
+                          <Image
+                            src={product.image_url || "/placeholder.svg?height=48&width=48&query=pet"}
+                            alt={product.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">{product.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">{product.categories.name}</Badge>
+                      </TableCell>
+                      <TableCell>Rp {product.price.toLocaleString("id-ID")}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            min="0"
+                            value={product.stock}
+                            onChange={(e) => {
+                              const newStock = Number.parseInt(e.target.value) || 0
+                              handleQuickStockUpdate(product.id, newStock)
+                            }}
+                            className="w-20"
+                          />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={stockStatus.variant}>{stockStatus.label}</Badge>
+                      </TableCell>
+                      {hasAvailabilityColumn && (
+                        <TableCell>
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              checked={product.is_available ?? true}
+                              onCheckedChange={() => handleAvailabilityToggle(product.id, product.is_available ?? true)}
+                              size="sm"
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              {product.is_available !== false ? "Yes" : "No"}
+                            </span>
+                          </div>
+                        </TableCell>
+                      )}
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <Button variant="outline" size="sm" onClick={() => handleEdit(product)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDelete(product.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           )}

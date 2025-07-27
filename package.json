@@ -13,6 +13,7 @@
     "@radix-ui/react-radio-group": "latest",
     "@radix-ui/react-select": "latest",
     "@radix-ui/react-slot": "^1.0.2",
+    "@radix-ui/react-switch": "latest",
     "@radix-ui/react-tabs": "latest",
     "@supabase/supabase-js": "latest",
     "class-variance-authority": "^0.7.1",
