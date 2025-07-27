@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Star } from "lucide-react"
 import { TestimonialForm } from "@/components/testimonial-form"
-import { supabase } from "@/lib/supabase"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
 interface Testimonial {
   id: string
@@ -23,13 +23,23 @@ export function TestimonialSection() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Only fetch data on client side
     if (typeof window !== "undefined") {
+      if (!isSupabaseConfigured) {
+        setError("Supabase is not configured")
+        setLoading(false)
+        return
+      }
       fetchTestimonials()
     }
   }, [])
 
   const fetchTestimonials = async () => {
+    if (!supabase) {
+      setError("Supabase client is not available")
+      setLoading(false)
+      return
+    }
+
     try {
       setError(null)
 
@@ -75,10 +85,12 @@ export function TestimonialSection() {
     <section className="py-12">
       <div className="text-center mb-8">
         <h2 className="text-3xl font-bold mb-4">Customer Testimonials</h2>
-        <Button onClick={() => setShowForm(!showForm)}>{showForm ? "Hide Form" : "Write a Review"}</Button>
+        {isSupabaseConfigured && (
+          <Button onClick={() => setShowForm(!showForm)}>{showForm ? "Hide Form" : "Write a Review"}</Button>
+        )}
       </div>
 
-      {showForm && (
+      {showForm && isSupabaseConfigured && (
         <div className="mb-8">
           <TestimonialForm onSuccess={() => setShowForm(false)} />
         </div>

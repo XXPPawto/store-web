@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { ProductCard } from "@/components/product-card"
 import { CategoryFilter } from "@/components/category-filter"
-import { supabase } from "@/lib/supabase"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
 interface Product {
   id: string
@@ -31,21 +31,26 @@ export function ProductGrid() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Only fetch data on client side
     if (typeof window !== "undefined") {
+      if (!isSupabaseConfigured) {
+        setError("Supabase is not configured. Please check your environment variables.")
+        setLoading(false)
+        return
+      }
       fetchProducts()
       fetchCategories()
     }
   }, [])
 
   const fetchProducts = async () => {
+    if (!supabase) {
+      setError("Supabase client is not available")
+      setLoading(false)
+      return
+    }
+
     try {
       setError(null)
-
-      // Check if Supabase is properly configured
-      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-        throw new Error("Supabase configuration is missing")
-      }
 
       const { data: productsData, error: productsError } = await supabase
         .from("products")
@@ -87,6 +92,8 @@ export function ProductGrid() {
   }
 
   const fetchCategories = async () => {
+    if (!supabase) return
+
     try {
       const { data, error } = await supabase.from("categories").select("*")
 
@@ -114,9 +121,11 @@ export function ProductGrid() {
     return (
       <div className="text-center py-12">
         <p className="text-red-500 mb-4">{error}</p>
-        <p className="text-muted-foreground">
-          Please make sure your Supabase environment variables are configured correctly.
-        </p>
+        <div className="text-sm text-muted-foreground space-y-2">
+          <p>Environment variables status:</p>
+          <p>NEXT_PUBLIC_SUPABASE_URL: {process.env.NEXT_PUBLIC_SUPABASE_URL ? "✅ Set" : "❌ Missing"}</p>
+          <p>NEXT_PUBLIC_SUPABASE_ANON_KEY: {process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "✅ Set" : "❌ Missing"}</p>
+        </div>
       </div>
     )
   }
