@@ -28,17 +28,25 @@ export function ProductGrid() {
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchProducts()
-    fetchCategories()
+    // Only fetch data on client side
+    if (typeof window !== "undefined") {
+      fetchProducts()
+      fetchCategories()
+    }
   }, [])
-
-  // Update the fetchProducts function to handle the relationship properly
 
   const fetchProducts = async () => {
     try {
-      // First, let's try a simpler approach by fetching products and categories separately
+      setError(null)
+
+      // Check if Supabase is properly configured
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        throw new Error("Supabase configuration is missing")
+      }
+
       const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select("*")
@@ -47,12 +55,10 @@ export function ProductGrid() {
 
       if (productsError) throw productsError
 
-      // Fetch categories separately
       const { data: categoriesData, error: categoriesError } = await supabase.from("categories").select("*")
 
       if (categoriesError) throw categoriesError
 
-      // Create a map of category IDs to category names
       const categoryMap =
         categoriesData?.reduce(
           (acc, category) => {
@@ -62,7 +68,6 @@ export function ProductGrid() {
           {} as Record<string, string>,
         ) || {}
 
-      // Combine the data
       const productsWithCategories =
         productsData?.map((product) => ({
           ...product,
@@ -74,7 +79,7 @@ export function ProductGrid() {
       setProducts(productsWithCategories)
     } catch (error) {
       console.error("Error fetching products:", error)
-      // Set empty array on error to prevent infinite loading
+      setError("Failed to load products. Please check your configuration.")
       setProducts([])
     } finally {
       setLoading(false)
@@ -105,6 +110,17 @@ export function ProductGrid() {
     )
   }
 
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-red-500 mb-4">{error}</p>
+        <p className="text-muted-foreground">
+          Please make sure your Supabase environment variables are configured correctly.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
       <CategoryFilter
@@ -119,7 +135,7 @@ export function ProductGrid() {
         ))}
       </div>
 
-      {filteredProducts.length === 0 && (
+      {filteredProducts.length === 0 && !error && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No products found in this category.</p>
         </div>

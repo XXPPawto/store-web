@@ -20,13 +20,19 @@ export function TestimonialSection() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([])
   const [showForm, setShowForm] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchTestimonials()
+    // Only fetch data on client side
+    if (typeof window !== "undefined") {
+      fetchTestimonials()
+    }
   }, [])
 
   const fetchTestimonials = async () => {
     try {
+      setError(null)
+
       const { data, error } = await supabase
         .from("testimonials")
         .select("*")
@@ -38,6 +44,7 @@ export function TestimonialSection() {
       setTestimonials(data || [])
     } catch (error) {
       console.error("Error fetching testimonials:", error)
+      setError("Failed to load testimonials")
     } finally {
       setLoading(false)
     }
@@ -77,24 +84,30 @@ export function TestimonialSection() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {testimonials.map((testimonial) => (
-          <Card key={testimonial.id}>
-            <CardContent className="p-6">
-              <div className="flex items-center mb-4">
-                <div className="flex">{renderStars(testimonial.rating)}</div>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">"{testimonial.message}"</p>
-              <div className="text-sm">
-                <p className="font-semibold">{testimonial.username}</p>
-                <p className="text-muted-foreground">Bought: {testimonial.item_bought}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {error ? (
+        <div className="text-center py-12">
+          <p className="text-red-500">{error}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {testimonials.map((testimonial) => (
+            <Card key={testimonial.id}>
+              <CardContent className="p-6">
+                <div className="flex items-center mb-4">
+                  <div className="flex">{renderStars(testimonial.rating)}</div>
+                </div>
+                <p className="text-sm text-muted-foreground mb-4">"{testimonial.message}"</p>
+                <div className="text-sm">
+                  <p className="font-semibold">{testimonial.username}</p>
+                  <p className="text-muted-foreground">Bought: {testimonial.item_bought}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-      {testimonials.length === 0 && (
+      {testimonials.length === 0 && !error && !loading && (
         <div className="text-center py-12">
           <p className="text-muted-foreground">No testimonials yet. Be the first to review!</p>
         </div>
