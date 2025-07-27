@@ -11,9 +11,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { Pencil, Trash2, Plus } from "lucide-react"
+import { Pencil, Trash2, Plus, Upload, X } from "lucide-react"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 import { toast } from "sonner"
+import Image from "next/image"
 
 interface Product {
   id: string
@@ -39,6 +40,9 @@ export function ProductManagement() {
   const [showForm, setShowForm] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(false)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string>("")
   const [formData, setFormData] = useState({
     name: "",
     price: "",
@@ -121,6 +125,50 @@ export function ProductManagement() {
     }
   }
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file")
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB")
+      return
+    }
+
+    setSelectedImage(file)
+
+    // Create preview
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setImagePreview(e.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const uploadImage = async (file: File): Promise<string> => {
+    if (!supabase) throw new Error("Supabase not configured")
+
+    const fileExt = file.name.split(".").pop()
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+    const filePath = `products/${fileName}`
+
+    const { error: uploadError } = await supabase.storage.from("product-images").upload(filePath, file)
+
+    if (uploadError) {
+      throw uploadError
+    }
+
+    const { data } = supabase.storage.from("product-images").getPublicUrl(filePath)
+
+    return data.publicUrl
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -137,10 +185,26 @@ export function ProductManagement() {
     setLoading(true)
 
     try {
+      let imageUrl = formData.image_url
+
+      // Upload new image if selected
+      if (selectedImage) {
+        setUploadingImage(true)
+        try {
+          imageUrl = await uploadImage(selectedImage)
+        } catch (uploadError) {
+          console.error("Image upload error:", uploadError)
+          toast.error("Failed to upload image. Using placeholder instead.")
+          imageUrl = "/placeholder.svg?height=300&width=300"
+        } finally {
+          setUploadingImage(false)
+        }
+      }
+
       const productData = {
         name: formData.name,
         price: Number.parseFloat(formData.price),
-        image_url: formData.image_url || null,
+        image_url: imageUrl || "/placeholder.svg?height=300&width=300",
         category_id: formData.category_id,
         stock: Number.parseInt(formData.stock),
         description: formData.description || null,
@@ -174,6 +238,8 @@ export function ProductManagement() {
 
       // Reset form
       setFormData({ name: "", price: "", image_url: "", category_id: "", stock: "", description: "" })
+      setSelectedImage(null)
+      setImagePreview("")
       setEditingProduct(null)
       setShowForm(false)
 
@@ -197,6 +263,8 @@ export function ProductManagement() {
       stock: product.stock.toString(),
       description: product.description || "",
     })
+    setImagePreview(product.image_url || "")
+    setSelectedImage(null)
     setShowForm(true)
   }
 
@@ -227,8 +295,16 @@ export function ProductManagement() {
 
   const handleCancel = () => {
     setFormData({ name: "", price: "", image_url: "", category_id: "", stock: "", description: "" })
+    setSelectedImage(null)
+    setImagePreview("")
     setEditingProduct(null)
     setShowForm(false)
+  }
+
+  const removeImage = () => {
+    setSelectedImage(null)
+    setImagePreview("")
+    setFormData({ ...formData, image_url: "" })
   }
 
   if (!isSupabaseConfigured) {
@@ -309,15 +385,44 @@ export function ProductManagement() {
                   />
                 </div>
               </div>
+
+              {/* Image Upload Section */}
               <div>
-                <Label htmlFor="image_url">Image URL</Label>
-                <Input
-                  id="image_url"
-                  value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  placeholder="Enter image URL"
-                />
+                <Label htmlFor="image">Product Image</Label>
+                <div className="mt-2 space-y-4">
+                  {/* Image Preview */}
+                  {imagePreview && (
+                    <div className="relative w-32 h-32 border rounded-lg overflow-hidden">
+                      <Image src={imagePreview || "/placeholder.svg"} alt="Preview" fill className="object-cover" />
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute top-1 right-1 h-6 w-6 p-0"
+                        onClick={removeImage}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* File Input */}
+                  <div className="flex items-center space-x-2">
+                    <Input id="image" type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => document.getElementById("image")?.click()}
+                      disabled={uploadingImage}
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      {uploadingImage ? "Uploading..." : "Select Image"}
+                    </Button>
+                    <span className="text-sm text-muted-foreground">Max 5MB, JPG/PNG/GIF</span>
+                  </div>
+                </div>
               </div>
+
               <div>
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -329,8 +434,14 @@ export function ProductManagement() {
                 />
               </div>
               <div className="flex space-x-2">
-                <Button type="submit" disabled={loading}>
-                  {loading ? "Saving..." : editingProduct ? "Update Product" : "Add Product"}
+                <Button type="submit" disabled={loading || uploadingImage}>
+                  {loading
+                    ? "Saving..."
+                    : uploadingImage
+                      ? "Uploading..."
+                      : editingProduct
+                        ? "Update Product"
+                        : "Add Product"}
                 </Button>
                 <Button type="button" variant="outline" onClick={handleCancel}>
                   Cancel
@@ -352,6 +463,7 @@ export function ProductManagement() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Image</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Price</TableHead>
@@ -362,6 +474,16 @@ export function ProductManagement() {
               <TableBody>
                 {products.map((product) => (
                   <TableRow key={product.id}>
+                    <TableCell>
+                      <div className="relative w-12 h-12 rounded overflow-hidden">
+                        <Image
+                          src={product.image_url || "/placeholder.svg?height=48&width=48&query=pet"}
+                          alt={product.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    </TableCell>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{product.categories.name}</Badge>
