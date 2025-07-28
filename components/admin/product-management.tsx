@@ -430,7 +430,7 @@ export function ProductManagement() {
         </Button>
       </div>
 
-      {!hasAvailabilityColumn && (
+      {/* !hasAvailabilityColumn && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardContent className="p-4">
             <p className="text-yellow-800 text-sm">
@@ -443,7 +443,7 @@ export function ProductManagement() {
             </p>
           </CardContent>
         </Card>
-      )}
+      ) */}
 
       {showForm && (
         <Card>
