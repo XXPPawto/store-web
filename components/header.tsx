@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ShoppingCart, Menu, X, Store, BarChart3, Heart, Home, Package, MessageSquare } from "lucide-react"
+import { ShoppingCart, Menu, X, Store, Home, Package, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/hooks/use-cart"
-import { ProductComparison } from "@/components/product-comparison"
 import { SearchDropdown } from "@/components/search-dropdown"
 
 interface HeaderProps {
@@ -17,40 +16,18 @@ interface HeaderProps {
 
 export function Header({ onSearch, searchQuery = "", showSearch = false }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [showComparison, setShowComparison] = useState(false)
-  const [compareCount, setCompareCount] = useState(0)
-  const [wishlistCount, setWishlistCount] = useState(0)
   const { items } = useCart()
 
   const itemCount = items.reduce((total, item) => total + item.quantity, 0)
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      const compareList = JSON.parse(localStorage.getItem("compareList") || "[]")
-      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]")
-      setCompareCount(compareList.length)
-      setWishlistCount(wishlist.length)
-
-      const handleStorageChange = () => {
-        const compareList = JSON.parse(localStorage.getItem("compareList") || "[]")
-        const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]")
-        setCompareCount(compareList.length)
-        setWishlistCount(wishlist.length)
-      }
+      const handleStorageChange = () => {}
 
       window.addEventListener("storage", handleStorageChange)
 
-      // Custom event listener for wishlist updates
-      const handleWishlistUpdate = () => {
-        const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]")
-        setWishlistCount(wishlist.length)
-      }
-
-      window.addEventListener("wishlistUpdated", handleWishlistUpdate)
-
       return () => {
         window.removeEventListener("storage", handleStorageChange)
-        window.removeEventListener("wishlistUpdated", handleWishlistUpdate)
       }
     }
   }, [])
@@ -58,7 +35,6 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
   const navItems = [
     { href: "/", label: "Home", icon: Home },
     { href: "/products", label: "Products", icon: Package },
-    { href: "/wishlist", label: "Wishlist", icon: Heart, badge: wishlistCount },
     { href: "/testimonials", label: "Reviews", icon: MessageSquare },
   ]
 
@@ -111,22 +87,6 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
 
             {/* Right side actions */}
             <div className="flex items-center space-x-1 flex-shrink-0">
-              {/* Compare Button - Desktop Only */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowComparison(true)}
-                className="relative hover:bg-emerald-50 dark:hover:bg-emerald-950 w-8 h-8 md:w-10 md:h-10 hidden md:flex"
-              >
-                <BarChart3 className="h-4 w-4 md:h-5 md:w-5" />
-                {compareCount > 0 && (
-                  <Badge className="absolute -top-1 -right-1 md:-top-2 md:-right-2 h-4 w-4 md:h-5 md:w-5 rounded-full p-0 text-xs flex items-center justify-center bg-emerald-600">
-                    {compareCount}
-                  </Badge>
-                )}
-                <span className="sr-only">Product comparison</span>
-              </Button>
-
               {/* Cart - Always Visible */}
               <Link href="/cart">
                 <Button
@@ -184,30 +144,11 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
                     )}
                   </Link>
                 ))}
-
-                {/* Compare Button in Mobile Menu */}
-                <button
-                  onClick={() => {
-                    setShowComparison(true)
-                    setIsMenuOpen(false)
-                  }}
-                  className="text-sm font-medium hover:text-emerald-600 transition-colors px-2 py-2 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950 flex items-center gap-3 w-full text-left"
-                >
-                  <BarChart3 className="h-5 w-5" />
-                  <span>Compare Products</span>
-                  {compareCount > 0 && (
-                    <Badge className="ml-auto h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center bg-emerald-600">
-                      {compareCount}
-                    </Badge>
-                  )}
-                </button>
               </nav>
             </div>
           )}
         </div>
       </header>
-
-      <ProductComparison isOpen={showComparison} onClose={() => setShowComparison(false)} />
     </>
   )
 }

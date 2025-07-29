@@ -5,6 +5,7 @@ import { LogOut } from "lucide-react"
 import { ProductManagement } from "@/components/admin/product-management"
 import { CategoryManagement } from "@/components/admin/category-management"
 import { TestimonialManagement } from "@/components/admin/testimonial-management"
+import { VoucherManagement } from "@/components/admin/voucher-management"
 
 interface AdminDashboardProps {
   onLogout: () => void
@@ -30,9 +31,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="vouchers">Vouchers</TabsTrigger>
             <TabsTrigger value="testimonials">Testimonials</TabsTrigger>
           </TabsList>
 
@@ -42,6 +44,10 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
 
           <TabsContent value="categories">
             <CategoryManagement />
+          </TabsContent>
+
+          <TabsContent value="vouchers">
+            <VoucherManagement />
           </TabsContent>
 
           <TabsContent value="testimonials">

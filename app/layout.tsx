@@ -7,6 +7,7 @@ import { CartProvider } from "@/hooks/use-cart"
 import { FloatingCart } from "@/components/floating-cart"
 import { BackToTop } from "@/components/back-to-top"
 import { Toaster } from "sonner"
+import { LiveChat } from "@/components/live-chat"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -29,6 +30,7 @@ export default function RootLayout({
             {children}
             <FloatingCart />
             <BackToTop />
+            <LiveChat />
             <Toaster />
           </CartProvider>
         </ThemeProvider>

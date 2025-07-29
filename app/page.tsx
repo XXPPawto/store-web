@@ -10,6 +10,8 @@ import { RecentlyViewed } from "@/components/recently-viewed"
 import { FloatingElements } from "@/components/floating-elements"
 import { Footer } from "@/components/footer"
 import { HeroSection } from "@/components/hero-section"
+import { FlashSaleTimer } from "@/components/flash-sale-timer"
+import { VoucherBanner } from "@/components/voucher-banner"
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -21,6 +23,18 @@ export default function HomePage() {
 
       {/* Enhanced Hero Section */}
       <HeroSection />
+
+      {/* Flash Sale Timer */}
+      <section className="py-4">
+        <div className="container mx-auto px-4">
+          <FlashSaleTimer />
+        </div>
+      </section>
+
+      {/* Voucher Banner */}
+      <Suspense fallback={<div className="h-32 bg-muted/30 animate-pulse" />}>
+        <VoucherBanner />
+      </Suspense>
 
       {/* Stats Section */}
       <Suspense fallback={<div className="h-32 bg-muted/30 animate-pulse" />}>

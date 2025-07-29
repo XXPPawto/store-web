@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { useCart } from "@/hooks/use-cart"
 import { toast } from "sonner"
+import { VoucherInput } from "@/components/voucher-input"
 
 interface CheckoutFormProps {
   total: number
@@ -21,6 +22,8 @@ export function CheckoutForm({ total }: CheckoutFormProps) {
     whatsapp: "",
   })
   const [paymentMethod, setPaymentMethod] = useState("")
+  const [appliedVoucher, setAppliedVoucher] = useState<any>(null)
+  const [discount, setDiscount] = useState(0)
 
   const paymentMethods = [
     { id: "dana", name: "Dana" },
@@ -29,6 +32,8 @@ export function CheckoutForm({ total }: CheckoutFormProps) {
     { id: "seabank", name: "Sea Bank" },
     { id: "qris", name: "QRIS" },
   ]
+
+  const finalTotal = Math.max(0, total - discount)
 
   const handleCheckout = () => {
     if (!customerInfo.name || !customerInfo.robloxUsername || !customerInfo.whatsapp || !paymentMethod) {
@@ -50,7 +55,8 @@ WhatsApp: ${customerInfo.whatsapp}
 📦 *Order Details:*
 ${orderDetails}
 
-💰 *Total: Rp ${total.toLocaleString("id-ID")}*
+💰 *Subtotal: Rp ${total.toLocaleString("id-ID")}*
+${discount > 0 ? `🎫 *Discount (${appliedVoucher?.code}): -Rp ${discount.toLocaleString("id-ID")}*\n` : ""}💳 *Total: Rp ${finalTotal.toLocaleString("id-ID")}*
 💳 *Payment Method: ${paymentMethods.find((p) => p.id === paymentMethod)?.name}*
 
 Please confirm this order and provide payment instructions.`
@@ -98,6 +104,15 @@ Please confirm this order and provide payment instructions.`
           />
         </div>
 
+        <VoucherInput
+          total={total}
+          onVoucherApplied={(voucher, discountAmount) => {
+            setAppliedVoucher(voucher)
+            setDiscount(discountAmount)
+          }}
+          appliedVoucher={appliedVoucher}
+        />
+
         <div>
           <Label>Payment Method</Label>
           <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -111,11 +126,23 @@ Please confirm this order and provide payment instructions.`
         </div>
 
         <div className="border-t pt-4">
-          <div className="flex justify-between items-center mb-4">
-            <span className="text-lg font-semibold">Total:</span>
-            <span className="text-lg font-bold">Rp {total.toLocaleString("id-ID")}</span>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span>Subtotal:</span>
+              <span>Rp {total.toLocaleString("id-ID")}</span>
+            </div>
+            {discount > 0 && (
+              <div className="flex justify-between items-center text-emerald-600">
+                <span>Discount ({appliedVoucher?.code}):</span>
+                <span>-Rp {discount.toLocaleString("id-ID")}</span>
+              </div>
+            )}
+            <div className="flex justify-between items-center text-lg font-bold border-t pt-2">
+              <span>Total:</span>
+              <span className="text-emerald-600">Rp {finalTotal.toLocaleString("id-ID")}</span>
+            </div>
           </div>
-          <Button onClick={handleCheckout} className="w-full" size="lg">
+          <Button onClick={handleCheckout} className="w-full mt-4" size="lg">
             Checkout via WhatsApp
           </Button>
         </div>

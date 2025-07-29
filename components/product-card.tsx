@@ -8,10 +8,9 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/hooks/use-cart"
 import { toast } from "sonner"
-import { ShoppingCart, Sparkles } from "lucide-react"
+import { ShoppingCart, Sparkles, Eye } from "lucide-react"
 import { useState, useEffect } from "react"
-import { WishlistButton } from "@/components/wishlist-button"
-import { CompareButton } from "@/components/compare-button"
+import { SocialShare } from "@/components/social-share"
 
 interface Product {
   id: string
@@ -29,9 +28,10 @@ interface Product {
 
 interface ProductCardProps {
   product: Product
+  onQuickView?: (product: Product) => void
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, onQuickView }: ProductCardProps) {
   const { addItem, items } = useCart()
   const [imageLoading, setImageLoading] = useState(true)
   const [isHovered, setIsHovered] = useState(false)
@@ -131,13 +131,22 @@ export function ProductCard({ product }: ProductCardProps) {
           )}
 
           {/* Action Buttons */}
-          <div
-            className={`absolute top-3 right-3 flex flex-col gap-1 transition-all duration-300 ${
-              isHovered ? "opacity-100 translate-x-0" : "opacity-0 translate-x-2"
-            }`}
-          >
-            <WishlistButton productId={product.id} productName={product.name} />
-            <CompareButton product={product} />
+          <div className="absolute top-3 right-3 flex flex-col gap-1 z-20">
+            {onQuickView && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onQuickView(product)
+                }}
+                className="bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 w-8 h-8 shadow-md"
+              >
+                <Eye className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+              </Button>
+            )}
+            <SocialShare product={product} />
           </div>
 
           {/* Stock Badge */}

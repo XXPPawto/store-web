@@ -5,6 +5,8 @@ import { ProductCard } from "@/components/product-card"
 import { CategoryFilter } from "@/components/category-filter"
 import { SortFilter } from "@/components/sort-filter"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
+import { QuickViewModal } from "@/components/quick-view-modal"
+import { ProductRecommendations } from "@/components/product-recommendations"
 
 interface Product {
   id: string
@@ -39,6 +41,8 @@ export function ProductGrid({ searchQuery = "", onSearchQueryChange }: ProductGr
   const [sortBy, setSortBy] = useState<string>("price_high")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null)
+  const [showQuickView, setShowQuickView] = useState(false)
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -174,6 +178,11 @@ export function ProductGrid({ searchQuery = "", onSearchQueryChange }: ProductGr
     setFilteredProducts(filtered)
   }
 
+  const handleQuickView = (product: Product) => {
+    setQuickViewProduct(product)
+    setShowQuickView(true)
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -237,7 +246,7 @@ export function ProductGrid({ searchQuery = "", onSearchQueryChange }: ProductGr
       {/* Products Grid - Optimized for mobile */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
         {filteredProducts.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <ProductCard key={product.id} product={product} onQuickView={handleQuickView} />
         ))}
       </div>
 
@@ -263,6 +272,16 @@ export function ProductGrid({ searchQuery = "", onSearchQueryChange }: ProductGr
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Quick View Modal */}
+      <QuickViewModal product={quickViewProduct} isOpen={showQuickView} onClose={() => setShowQuickView(false)} />
+
+      {/* Product Recommendations */}
+      {filteredProducts.length > 0 && (
+        <div className="mt-12">
+          <ProductRecommendations title="Recommended for You" maxItems={4} />
         </div>
       )}
     </div>
