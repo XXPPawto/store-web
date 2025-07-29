@@ -1,11 +1,17 @@
 "use client"
 
+import type React from "react"
+
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useCart } from "@/hooks/use-cart"
 import { toast } from "sonner"
+import { ShoppingCart } from "lucide-react"
+import { useState, useEffect } from "react"
+import { WishlistButton } from "@/components/wishlist-button"
+import { CompareButton } from "@/components/compare-button"
 
 interface Product {
   id: string
@@ -27,13 +33,25 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem, items } = useCart()
+  const [imageLoading, setImageLoading] = useState(true)
 
-  // Check current quantity in cart
   const currentInCart = items.find((item) => item.id === product.id)?.quantity || 0
   const availableToAdd = product.stock - currentInCart
   const canAddToCart = product.is_available !== false && product.stock > 0 && availableToAdd > 0
 
-  const handleAddToCart = () => {
+  // Add to recently viewed
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const recent = JSON.parse(localStorage.getItem("recentlyViewed") || "[]")
+      const filtered = recent.filter((p: Product) => p.id !== product.id)
+      const updated = [product, ...filtered].slice(0, 10)
+      localStorage.setItem("recentlyViewed", JSON.stringify(updated))
+    }
+  }, [product])
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation()
+
     if (!canAddToCart) {
       if (product.is_available === false) {
         toast.error("This item is disabled")
@@ -73,65 +91,99 @@ export function ProductCard({ product }: ProductCardProps) {
   const stockBadge = getStockBadge()
 
   return (
-    <Card className={`overflow-hidden hover:shadow-lg transition-shadow ${!canAddToCart ? "opacity-90" : ""}`}>
+    <Card
+      className={`group overflow-hidden hover:shadow-xl transition-all duration-300 ${!canAddToCart ? "opacity-90" : ""}`}
+    >
       <CardContent className="p-0">
-        <div className="relative aspect-square">
+        <div className="relative aspect-square overflow-hidden">
+          {imageLoading && (
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-900 dark:to-teal-900 animate-pulse" />
+          )}
           <Image
             src={product.image_url || "/placeholder.svg?height=300&width=300&query=cute pet"}
             alt={product.name}
             fill
-            className="object-cover"
+            className={`object-cover transition-transform duration-300 group-hover:scale-105 ${
+              imageLoading ? "opacity-0" : "opacity-100"
+            }`}
+            onLoad={() => setImageLoading(false)}
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           />
-          <Badge className="absolute top-2 right-2">{product.categories.name}</Badge>
 
-          {/* Sold Out Overlay */}
+          {/* Category Badge */}
+          <Badge className="absolute top-3 left-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs">
+            {product.categories.name}
+          </Badge>
+
+          {/* Action Buttons */}
+          <div className="absolute top-3 right-3 flex flex-col gap-1">
+            <WishlistButton productId={product.id} productName={product.name} />
+            <CompareButton product={product} />
+          </div>
+
+          {/* Stock Badge */}
+          <Badge variant={stockBadge.variant} className="absolute bottom-3 right-3 text-xs">
+            {stockBadge.label}
+          </Badge>
+
+          {/* Overlays for different states */}
           {product.stock === 0 && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <Badge variant="destructive" className="text-lg px-4 py-2 bg-red-600">
+            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+              <Badge variant="destructive" className="text-sm md:text-lg px-3 py-1 md:px-4 md:py-2 bg-red-600">
                 SOLD OUT
               </Badge>
             </div>
           )}
 
-          {/* Disabled Overlay */}
           {product.is_available === false && (
-            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-              <Badge variant="secondary" className="text-lg px-4 py-2 bg-gray-600">
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <Badge variant="secondary" className="text-sm md:text-lg px-3 py-1 md:px-4 md:py-2 bg-gray-600">
                 DISABLED
               </Badge>
             </div>
           )}
 
-          {/* Max Reached Overlay */}
           {product.stock > 0 && product.is_available !== false && availableToAdd <= 0 && (
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-              <Badge variant="secondary" className="text-sm px-3 py-1 bg-orange-600">
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <Badge variant="secondary" className="text-xs px-2 py-1 bg-orange-600">
                 MAX REACHED
               </Badge>
             </div>
           )}
+
+          {/* Hover overlay */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300" />
         </div>
-        <div className="p-4">
-          <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
-          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{product.description}</p>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-2xl font-bold text-primary">Rp {product.price.toLocaleString("id-ID")}</span>
-            <Badge variant={stockBadge.variant}>{stockBadge.label}</Badge>
-          </div>
-          {currentInCart > 0 && (
-            <div className="text-sm text-muted-foreground mb-2">
-              In cart: {currentInCart} | Available: {availableToAdd}
+
+        <div className="p-3 md:p-4">
+          <h3 className="font-semibold text-base md:text-lg lg:text-xl mb-2 line-clamp-1 group-hover:text-emerald-600 transition-colors">
+            {product.name}
+          </h3>
+
+          <p className="text-xs md:text-sm text-muted-foreground mb-3 line-clamp-2 h-6 md:h-8 lg:h-10">
+            {product.description || "Premium pet for your Roblox garden"}
+          </p>
+
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex flex-col">
+              <span className="text-xl md:text-2xl lg:text-3xl font-bold text-emerald-600">
+                Rp {product.price.toLocaleString("id-ID")}
+              </span>
+              {currentInCart > 0 && <span className="text-xs text-muted-foreground">{currentInCart} in cart</span>}
             </div>
-          )}
+          </div>
         </div>
       </CardContent>
-      <CardFooter className="p-4 pt-0">
+
+      <CardFooter className="p-3 md:p-4 pt-0">
         <Button
-          className="w-full"
+          className="w-full group-hover:shadow-md transition-shadow bg-emerald-600 hover:bg-emerald-700 text-xs md:text-sm"
           onClick={handleAddToCart}
           disabled={!canAddToCart}
           variant={product.stock === 0 ? "destructive" : "default"}
+          size="sm"
         >
+          <ShoppingCart className="h-3 w-3 md:h-4 md:w-4 mr-2" />
           {getButtonText()}
         </Button>
       </CardFooter>

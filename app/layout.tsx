@@ -4,6 +4,8 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { CartProvider } from "@/hooks/use-cart"
+import { FloatingCart } from "@/components/floating-cart"
+import { BackToTop } from "@/components/back-to-top"
 import { Toaster } from "sonner"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -25,6 +27,8 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <CartProvider>
             {children}
+            <FloatingCart />
+            <BackToTop />
             <Toaster />
           </CartProvider>
         </ThemeProvider>

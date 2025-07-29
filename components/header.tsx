@@ -1,77 +1,180 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ShoppingCart, Menu, X, Sun, Moon } from "lucide-react"
+import { ShoppingCart, Menu, X, Store, BarChart3, Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useTheme } from "next-themes"
 import { useCart } from "@/hooks/use-cart"
+import { ProductComparison } from "@/components/product-comparison"
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const { theme, setTheme } = useTheme()
+  const [showComparison, setShowComparison] = useState(false)
+  const [compareCount, setCompareCount] = useState(0)
+  const [wishlistCount, setWishlistCount] = useState(0)
   const { items } = useCart()
 
   const itemCount = items.reduce((total, item) => total + item.quantity, 0)
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const compareList = JSON.parse(localStorage.getItem("compareList") || "[]")
+      const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]")
+      setCompareCount(compareList.length)
+      setWishlistCount(wishlist.length)
+
+      const handleStorageChange = () => {
+        const compareList = JSON.parse(localStorage.getItem("compareList") || "[]")
+        const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]")
+        setCompareCount(compareList.length)
+        setWishlistCount(wishlist.length)
+      }
+
+      window.addEventListener("storage", handleStorageChange)
+
+      // Custom event listener for wishlist updates
+      const handleWishlistUpdate = () => {
+        const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]")
+        setWishlistCount(wishlist.length)
+      }
+
+      window.addEventListener("wishlistUpdated", handleWishlistUpdate)
+
+      return () => {
+        window.removeEventListener("storage", handleStorageChange)
+        window.removeEventListener("wishlistUpdated", handleWishlistUpdate)
+      }
+    }
+  }, [])
+
+  const navItems = [
+    { href: "/", label: "Home" },
+    { href: "/products", label: "Products" },
+    { href: "/wishlist", label: "Wishlist" },
+    { href: "/testimonials", label: "Reviews" },
+  ]
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold">🐾 XPawto</span>
-          </Link>
-
-          <nav className="hidden md:flex items-center space-x-6">
-            <Link href="/" className="text-sm font-medium hover:text-primary">
-              Home
-            </Link>
-            <Link href="/products" className="text-sm font-medium hover:text-primary">
-              Products
-            </Link>
-            <Link href="/testimonials" className="text-sm font-medium hover:text-primary">
-              Testimonials
-            </Link>
-          </nav>
-
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
-              <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-              <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            </Button>
-
-            <Link href="/cart">
-              <Button variant="ghost" size="icon" className="relative">
-                <ShoppingCart className="h-5 w-5" />
-                {itemCount > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 text-xs">{itemCount}</Badge>
-                )}
-              </Button>
+    <>
+      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4">
+          <div className="flex h-14 md:h-16 items-center justify-between">
+            {/* Logo */}
+            <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                  <Store className="h-4 w-4 md:h-5 md:w-5 text-white" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                    XPawto Store
+                  </span>
+                  <span className="text-xs text-muted-foreground hidden md:block">Premium Roblox Pets</span>
+                </div>
+              </div>
             </Link>
 
-            <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-              {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
-          </div>
-        </div>
-
-        {isMenuOpen && (
-          <div className="md:hidden border-t py-4">
-            <nav className="flex flex-col space-y-4">
-              <Link href="/" className="text-sm font-medium hover:text-primary">
-                Home
-              </Link>
-              <Link href="/products" className="text-sm font-medium hover:text-primary">
-                Products
-              </Link>
-              <Link href="/testimonials" className="text-sm font-medium hover:text-primary">
-                Testimonials
-              </Link>
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="text-sm font-medium hover:text-emerald-600 transition-colors relative group"
+                >
+                  {item.label}
+                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-emerald-600 transition-all group-hover:w-full" />
+                </Link>
+              ))}
             </nav>
+
+            {/* Right side actions */}
+            <div className="flex items-center space-x-2">
+              {/* Wishlist Button */}
+              <Link href="/wishlist">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative hover:bg-emerald-50 dark:hover:bg-emerald-950 w-8 h-8 md:w-10 md:h-10"
+                >
+                  <Heart className="h-4 w-4 md:h-5 md:w-5" />
+                  {wishlistCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 md:-top-2 md:-right-2 h-4 w-4 md:h-5 md:w-5 rounded-full p-0 text-xs flex items-center justify-center bg-red-500">
+                      {wishlistCount}
+                    </Badge>
+                  )}
+                  <span className="sr-only">Wishlist</span>
+                </Button>
+              </Link>
+
+              {/* Compare Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowComparison(true)}
+                className="relative hover:bg-emerald-50 dark:hover:bg-emerald-950 w-8 h-8 md:w-10 md:h-10"
+              >
+                <BarChart3 className="h-4 w-4 md:h-5 md:w-5" />
+                {compareCount > 0 && (
+                  <Badge className="absolute -top-1 -right-1 md:-top-2 md:-right-2 h-4 w-4 md:h-5 md:w-5 rounded-full p-0 text-xs flex items-center justify-center bg-emerald-600">
+                    {compareCount}
+                  </Badge>
+                )}
+                <span className="sr-only">Product comparison</span>
+              </Button>
+
+              {/* Cart */}
+              <Link href="/cart">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="relative hover:bg-emerald-50 dark:hover:bg-emerald-950 w-8 h-8 md:w-10 md:h-10"
+                >
+                  <ShoppingCart className="h-4 w-4 md:h-5 md:w-5" />
+                  {itemCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 md:-top-2 md:-right-2 h-4 w-4 md:h-5 md:w-5 rounded-full p-0 text-xs flex items-center justify-center bg-emerald-600">
+                      {itemCount > 99 ? "99+" : itemCount}
+                    </Badge>
+                  )}
+                  <span className="sr-only">Shopping cart</span>
+                </Button>
+              </Link>
+
+              {/* Mobile menu button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden hover:bg-emerald-50 dark:hover:bg-emerald-950 w-8 h-8"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+              >
+                {isMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+                <span className="sr-only">Toggle menu</span>
+              </Button>
+            </div>
           </div>
-        )}
-      </div>
-    </header>
+
+          {/* Mobile Navigation */}
+          {isMenuOpen && (
+            <div className="md:hidden border-t py-4 animate-in slide-in-from-top-2">
+              <nav className="flex flex-col space-y-4">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="text-sm font-medium hover:text-emerald-600 transition-colors px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+              </nav>
+            </div>
+          )}
+        </div>
+      </header>
+
+      <ProductComparison isOpen={showComparison} onClose={() => setShowComparison(false)} />
+    </>
   )
 }

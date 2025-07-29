@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Star } from "lucide-react"
+import { Star, Plus } from "lucide-react"
 import { TestimonialForm } from "@/components/testimonial-form"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
@@ -70,11 +70,12 @@ export function TestimonialSection() {
     return (
       <section className="py-12">
         <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold mb-4">Customer Testimonials</h2>
+          <h2 className="text-3xl font-bold mb-4">Customer Reviews</h2>
+          <p className="text-muted-foreground">What our customers say about us</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-40 bg-muted animate-pulse rounded-lg" />
+            <div key={i} className="h-48 bg-muted animate-pulse rounded-lg" />
           ))}
         </div>
       </section>
@@ -84,14 +85,18 @@ export function TestimonialSection() {
   return (
     <section className="py-12">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold mb-4">Customer Testimonials</h2>
+        <h2 className="text-3xl font-bold mb-4">Customer Reviews</h2>
+        <p className="text-muted-foreground mb-6">What our customers say about us</p>
         {isSupabaseConfigured && (
-          <Button onClick={() => setShowForm(!showForm)}>{showForm ? "Hide Form" : "Write a Review"}</Button>
+          <Button onClick={() => setShowForm(!showForm)} className="mb-6">
+            <Plus className="h-4 w-4 mr-2" />
+            {showForm ? "Hide Form" : "Write a Review"}
+          </Button>
         )}
       </div>
 
       {showForm && isSupabaseConfigured && (
-        <div className="mb-8">
+        <div className="mb-12">
           <TestimonialForm onSuccess={() => setShowForm(false)} />
         </div>
       )}
@@ -103,15 +108,19 @@ export function TestimonialSection() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {testimonials.map((testimonial) => (
-            <Card key={testimonial.id}>
+            <Card key={testimonial.id} className="hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center mb-4">
                   <div className="flex">{renderStars(testimonial.rating)}</div>
+                  <span className="ml-2 text-sm text-muted-foreground">{testimonial.rating}/5</span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">"{testimonial.message}"</p>
+                <blockquote className="text-sm text-muted-foreground mb-4 italic">"{testimonial.message}"</blockquote>
                 <div className="text-sm">
                   <p className="font-semibold">{testimonial.username}</p>
                   <p className="text-muted-foreground">Bought: {testimonial.item_bought}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(testimonial.created_at).toLocaleDateString()}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -121,7 +130,9 @@ export function TestimonialSection() {
 
       {testimonials.length === 0 && !error && !loading && (
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No testimonials yet. Be the first to review!</p>
+          <div className="text-6xl mb-4">⭐</div>
+          <h3 className="text-xl font-semibold mb-2">No reviews yet</h3>
+          <p className="text-muted-foreground">Be the first to review our products!</p>
         </div>
       )}
     </section>
