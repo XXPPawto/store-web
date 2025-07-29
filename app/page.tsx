@@ -1,18 +1,25 @@
+"use client"
+
+import { useState } from "react"
 import { Suspense } from "react"
 import { Header } from "@/components/header"
-import { HeroSection } from "@/components/hero-section"
 import { StatsSection } from "@/components/stats-section"
 import { ProductGrid } from "@/components/product-grid"
 import { TestimonialSection } from "@/components/testimonial-section"
 import { RecentlyViewed } from "@/components/recently-viewed"
+import { FloatingElements } from "@/components/floating-elements"
 import { Footer } from "@/components/footer"
+import { HeroSection } from "@/components/hero-section"
 
 export default function HomePage() {
-  return (
-    <div className="min-h-screen bg-background">
-      <Header />
+  const [searchQuery, setSearchQuery] = useState("")
 
-      {/* Hero Section */}
+  return (
+    <div className="min-h-screen bg-background relative">
+      <FloatingElements />
+      <Header onSearch={setSearchQuery} searchQuery={searchQuery} showSearch={true} />
+
+      {/* Enhanced Hero Section */}
       <HeroSection />
 
       {/* Stats Section */}
@@ -21,11 +28,11 @@ export default function HomePage() {
       </Suspense>
 
       {/* Products Section */}
-      <section id="products" className="py-8 md:py-12">
+      <section id="products" className="py-8 md:py-12 relative">
         <div className="container mx-auto px-4">
           <div className="text-center mb-6 md:mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold mb-4">Our Premium Collection</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-2xl md:text-3xl font-bold mb-4 animate-fade-in-up">Our Premium Collection</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto animate-fade-in-up animation-delay-200">
               Discover our carefully curated selection of premium pets for your Roblox garden
             </p>
           </div>
@@ -42,7 +49,7 @@ export default function HomePage() {
               </div>
             }
           >
-            <ProductGrid />
+            <ProductGrid searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
           </Suspense>
         </div>
       </section>

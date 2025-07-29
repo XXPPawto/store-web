@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react"
 import { ProductCard } from "@/components/product-card"
 import { CategoryFilter } from "@/components/category-filter"
-import { SearchBar } from "@/components/search-bar"
 import { SortFilter } from "@/components/sort-filter"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
@@ -27,12 +26,16 @@ interface Category {
   name: string
 }
 
-export function ProductGrid() {
+interface ProductGridProps {
+  searchQuery?: string
+  onSearchQueryChange?: (query: string) => void
+}
+
+export function ProductGrid({ searchQuery = "", onSearchQueryChange }: ProductGridProps) {
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [selectedCategory, setSelectedCategory] = useState<string>("all")
-  const [searchQuery, setSearchQuery] = useState<string>("")
   const [sortBy, setSortBy] = useState<string>("price_high")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -175,17 +178,9 @@ export function ProductGrid() {
     return (
       <div className="space-y-6">
         <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-          <div className="h-10 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900 dark:to-teal-900 animate-pulse rounded-lg w-full md:w-80" />
           <div className="h-10 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900 dark:to-teal-900 animate-pulse rounded-lg w-full md:w-48" />
         </div>
-        <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-10 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900 dark:to-teal-900 animate-pulse rounded-lg w-20"
-            />
-          ))}
-        </div>
+        <div className="h-12 bg-gradient-to-r from-emerald-100 to-teal-100 dark:from-emerald-900 dark:to-teal-900 animate-pulse rounded-lg w-full" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
             <div
@@ -213,9 +208,8 @@ export function ProductGrid() {
 
   return (
     <div className="space-y-4 md:space-y-6">
-      {/* Search and Sort Controls */}
-      <div className="flex flex-col md:flex-row gap-3 md:gap-4 justify-between items-center">
-        <SearchBar onSearch={setSearchQuery} placeholder="Search pets, categories..." />
+      {/* Sort Control - Top Right */}
+      <div className="flex justify-end">
         <SortFilter onSortChange={setSortBy} currentSort={sortBy} />
       </div>
 
@@ -233,8 +227,8 @@ export function ProductGrid() {
           Showing {filteredProducts.length} of {allProducts.length} products
           {searchQuery && ` for "${searchQuery}"`}
         </span>
-        {searchQuery && (
-          <button onClick={() => setSearchQuery("")} className="text-emerald-600 hover:underline">
+        {searchQuery && onSearchQueryChange && (
+          <button onClick={() => onSearchQueryChange("")} className="text-emerald-600 hover:underline">
             Clear search
           </button>
         )}
@@ -255,10 +249,10 @@ export function ProductGrid() {
           <p className="text-muted-foreground mb-4">
             {searchQuery ? `No products match "${searchQuery}"` : "No products found in this category"}
           </p>
-          {(searchQuery || selectedCategory !== "all") && (
+          {(searchQuery || selectedCategory !== "all") && onSearchQueryChange && (
             <div className="flex gap-2 justify-center">
               {searchQuery && (
-                <button onClick={() => setSearchQuery("")} className="text-emerald-600 hover:underline">
+                <button onClick={() => onSearchQueryChange("")} className="text-emerald-600 hover:underline">
                   Clear search
                 </button>
               )}

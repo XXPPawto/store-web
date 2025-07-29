@@ -2,20 +2,32 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ShoppingCart, Menu, X, Store, BarChart3, Heart } from "lucide-react"
+import { ShoppingCart, Menu, X, Store, BarChart3, Heart, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { useCart } from "@/hooks/use-cart"
 import { ProductComparison } from "@/components/product-comparison"
 
-export function Header() {
+interface HeaderProps {
+  onSearch?: (query: string) => void
+  searchQuery?: string
+  showSearch?: boolean
+}
+
+export function Header({ onSearch, searchQuery = "", showSearch = false }: HeaderProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showComparison, setShowComparison] = useState(false)
   const [compareCount, setCompareCount] = useState(0)
   const [wishlistCount, setWishlistCount] = useState(0)
+  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery)
   const { items } = useCart()
 
   const itemCount = items.reduce((total, item) => total + item.quantity, 0)
+
+  useEffect(() => {
+    setLocalSearchQuery(searchQuery)
+  }, [searchQuery])
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -48,6 +60,20 @@ export function Header() {
     }
   }, [])
 
+  const handleSearchChange = (value: string) => {
+    setLocalSearchQuery(value)
+    if (onSearch) {
+      onSearch(value)
+    }
+  }
+
+  const clearSearch = () => {
+    setLocalSearchQuery("")
+    if (onSearch) {
+      onSearch("")
+    }
+  }
+
   const navItems = [
     { href: "/", label: "Home" },
     { href: "/products", label: "Products" },
@@ -59,9 +85,9 @@ export function Header() {
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4">
-          <div className="flex h-14 md:h-16 items-center justify-between">
+          <div className="flex h-14 md:h-16 items-center justify-between gap-4">
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+            <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity flex-shrink-0">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
                   <Store className="h-4 w-4 md:h-5 md:w-5 text-white" />
@@ -70,18 +96,44 @@ export function Header() {
                   <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                     XPawto Store
                   </span>
-                  <span className="text-xs text-muted-foreground hidden md:block">Premium Roblox Pets</span>
+                  <span className="text-xs text-muted-foreground hidden lg:block">Premium Roblox Pets</span>
                 </div>
               </div>
             </Link>
 
+            {/* Search Bar - Desktop & Mobile */}
+            {showSearch && (
+              <div className="flex-1 max-w-md mx-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    type="text"
+                    placeholder="Search products..."
+                    value={localSearchQuery}
+                    onChange={(e) => handleSearchChange(e.target.value)}
+                    className="pl-10 pr-10 h-9 md:h-10"
+                  />
+                  {localSearchQuery && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearSearch}
+                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
+            <nav className="hidden md:flex items-center space-x-6 lg:space-x-8">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="text-sm font-medium hover:text-emerald-600 transition-colors relative group"
+                  className="text-sm font-medium hover:text-emerald-600 transition-colors relative group whitespace-nowrap"
                 >
                   {item.label}
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-emerald-600 transition-all group-hover:w-full" />
@@ -90,7 +142,7 @@ export function Header() {
             </nav>
 
             {/* Right side actions */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
               {/* Wishlist Button */}
               <Link href="/wishlist">
                 <Button

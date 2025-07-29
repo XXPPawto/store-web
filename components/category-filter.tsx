@@ -40,49 +40,102 @@ export function CategoryFilter({ categories, selectedCategory, onCategoryChange,
   }
 
   return (
-    <div className="flex flex-wrap gap-2">
-      <div className="flex items-center gap-2">
-        <Button
-          variant={selectedCategory === "all" ? "default" : "outline"}
-          onClick={() => onCategoryChange("all")}
-          className="relative"
-        >
-          All Categories
-          <Badge variant="secondary" className="ml-2">
-            {getCategoryCount("all")}
-          </Badge>
-          {getSoldOutCount("all") > 0 && (
-            <Badge variant="destructive" className="ml-1 text-xs">
-              {getSoldOutCount("all")} sold
-            </Badge>
-          )}
-        </Button>
-      </div>
-
-      {categories.map((category) => {
-        const totalCount = getCategoryCount(category.id)
-        const soldOutCount = getSoldOutCount(category.id)
-
-        return (
-          <div key={category.id} className="flex items-center gap-2">
+    <div className="w-full">
+      {/* Mobile: Horizontal scroll */}
+      <div className="md:hidden">
+        <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex-shrink-0">
             <Button
-              variant={selectedCategory === category.id ? "default" : "outline"}
-              onClick={() => onCategoryChange(category.id)}
-              className="relative"
+              variant={selectedCategory === "all" ? "default" : "outline"}
+              onClick={() => onCategoryChange("all")}
+              className="relative whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 data-[state=active]:bg-emerald-600"
+              size="sm"
             >
-              {category.name}
-              <Badge variant="secondary" className="ml-2">
-                {totalCount}
+              All Categories
+              <Badge variant="secondary" className="ml-2 text-xs">
+                {getCategoryCount("all")}
               </Badge>
-              {soldOutCount > 0 && (
-                <Badge variant="destructive" className="ml-1 text-xs">
-                  {soldOutCount} sold
+              {getSoldOutCount("all") > 0 && (
+                <Badge variant="destructive" className="ml-1 text-xs px-1">
+                  {getSoldOutCount("all")}
                 </Badge>
               )}
             </Button>
           </div>
-        )
-      })}
+
+          {categories.map((category) => {
+            const totalCount = getCategoryCount(category.id)
+            const soldOutCount = getSoldOutCount(category.id)
+
+            return (
+              <div key={category.id} className="flex-shrink-0">
+                <Button
+                  variant={selectedCategory === category.id ? "default" : "outline"}
+                  onClick={() => onCategoryChange(category.id)}
+                  className="relative whitespace-nowrap bg-emerald-600 hover:bg-emerald-700 data-[state=active]:bg-emerald-600"
+                  size="sm"
+                >
+                  {category.name}
+                  <Badge variant="secondary" className="ml-2 text-xs">
+                    {totalCount}
+                  </Badge>
+                  {soldOutCount > 0 && (
+                    <Badge variant="destructive" className="ml-1 text-xs px-1">
+                      {soldOutCount}
+                    </Badge>
+                  )}
+                </Button>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Desktop: Flex wrap */}
+      <div className="hidden md:flex flex-wrap gap-3">
+        <div className="flex items-center gap-2">
+          <Button
+            variant={selectedCategory === "all" ? "default" : "outline"}
+            onClick={() => onCategoryChange("all")}
+            className="relative bg-emerald-600 hover:bg-emerald-700"
+          >
+            All Categories
+            <Badge variant="secondary" className="ml-2">
+              {getCategoryCount("all")}
+            </Badge>
+            {getSoldOutCount("all") > 0 && (
+              <Badge variant="destructive" className="ml-1 text-xs">
+                {getSoldOutCount("all")} sold
+              </Badge>
+            )}
+          </Button>
+        </div>
+
+        {categories.map((category) => {
+          const totalCount = getCategoryCount(category.id)
+          const soldOutCount = getSoldOutCount(category.id)
+
+          return (
+            <div key={category.id} className="flex items-center gap-2">
+              <Button
+                variant={selectedCategory === category.id ? "default" : "outline"}
+                onClick={() => onCategoryChange(category.id)}
+                className="relative bg-emerald-600 hover:bg-emerald-700"
+              >
+                {category.name}
+                <Badge variant="secondary" className="ml-2">
+                  {totalCount}
+                </Badge>
+                {soldOutCount > 0 && (
+                  <Badge variant="destructive" className="ml-1 text-xs">
+                    {soldOutCount} sold
+                  </Badge>
+                )}
+              </Button>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
