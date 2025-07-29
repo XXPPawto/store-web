@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ShoppingCart, Menu, X, Store, BarChart3, Heart, Search, Home, Package, MessageSquare } from "lucide-react"
+import { ShoppingCart, Menu, X, Store, BarChart3, Heart, Home, Package, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
 import { useCart } from "@/hooks/use-cart"
 import { ProductComparison } from "@/components/product-comparison"
+import { SearchDropdown } from "@/components/search-dropdown"
 
 interface HeaderProps {
   onSearch?: (query: string) => void
@@ -20,14 +20,9 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
   const [showComparison, setShowComparison] = useState(false)
   const [compareCount, setCompareCount] = useState(0)
   const [wishlistCount, setWishlistCount] = useState(0)
-  const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery)
   const { items } = useCart()
 
   const itemCount = items.reduce((total, item) => total + item.quantity, 0)
-
-  useEffect(() => {
-    setLocalSearchQuery(searchQuery)
-  }, [searchQuery])
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -60,20 +55,6 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
     }
   }, [])
 
-  const handleSearchChange = (value: string) => {
-    setLocalSearchQuery(value)
-    if (onSearch) {
-      onSearch(value)
-    }
-  }
-
-  const clearSearch = () => {
-    setLocalSearchQuery("")
-    if (onSearch) {
-      onSearch("")
-    }
-  }
-
   const navItems = [
     { href: "/", label: "Home", icon: Home },
     { href: "/products", label: "Products", icon: Package },
@@ -104,26 +85,7 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
             {/* Search Bar - Desktop Only */}
             {showSearch && (
               <div className="hidden md:flex flex-1 max-w-md mx-4">
-                <div className="relative w-full">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    type="text"
-                    placeholder="Search products..."
-                    value={localSearchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className="pl-10 pr-10 h-10"
-                  />
-                  {localSearchQuery && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearSearch}
-                      className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  )}
-                </div>
+                <SearchDropdown onSearch={onSearch} searchQuery={searchQuery} placeholder="Search products..." />
               </div>
             )}
 
@@ -198,26 +160,7 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
           {/* Mobile Search Bar - Below header when search is enabled */}
           {showSearch && (
             <div className="md:hidden py-3 border-t">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  type="text"
-                  placeholder="Search products..."
-                  value={localSearchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  className="pl-10 pr-10 h-9"
-                />
-                {localSearchQuery && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={clearSearch}
-                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
+              <SearchDropdown onSearch={onSearch} searchQuery={searchQuery} placeholder="Search products..." />
             </div>
           )}
 
