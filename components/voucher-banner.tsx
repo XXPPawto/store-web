@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Ticket, Copy, Clock, Gift } from "lucide-react"
+import { Ticket, Copy, Clock, Gift, TrendingUp } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 
@@ -28,6 +28,10 @@ export function VoucherBanner() {
 
   useEffect(() => {
     fetchFeaturedVouchers()
+
+    // Refresh vouchers every 30 seconds to keep usage counts updated
+    const interval = setInterval(fetchFeaturedVouchers, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const fetchFeaturedVouchers = async () => {
@@ -41,7 +45,7 @@ export function VoucherBanner() {
         .from("vouchers")
         .select("*")
         .eq("is_active", true)
-        .gte("valid_until", new Date().toISOString())
+        .or(`valid_until.is.null,valid_until.gte.${new Date().toISOString()}`)
         .order("discount_value", { ascending: false })
         .limit(3)
 
@@ -51,7 +55,12 @@ export function VoucherBanner() {
         return
       }
 
-      setFeaturedVouchers(data || [])
+      // Filter vouchers that haven't reached usage limit
+      const availableVouchers = (data || []).filter(
+        (voucher) => !voucher.usage_limit || voucher.used_count < voucher.usage_limit,
+      )
+
+      setFeaturedVouchers(availableVouchers)
     } catch (error) {
       console.error("Error fetching vouchers:", error)
     } finally {
@@ -84,6 +93,17 @@ export function VoucherBanner() {
     if (days > 0) return `${days} days left`
     if (hours > 0) return `${hours} hours left`
     return "Expires soon"
+  }
+
+  const getUsagePercentage = (voucher: Voucher) => {
+    if (!voucher.usage_limit) return 0
+    return (voucher.used_count / voucher.usage_limit) * 100
+  }
+
+  const getRemainingUses = (voucher: Voucher) => {
+    if (!voucher.usage_limit) return "Unlimited"
+    const remaining = voucher.usage_limit - voucher.used_count
+    return `${remaining} uses left`
   }
 
   if (loading) {
@@ -156,7 +176,7 @@ export function VoucherBanner() {
                   <p className="text-sm text-muted-foreground line-clamp-2">{voucher.description}</p>
                 </div>
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <code className="bg-white/70 dark:bg-gray-800/70 px-2 py-1 rounded text-sm font-mono font-bold">
                       {voucher.code}
@@ -179,29 +199,40 @@ export function VoucherBanner() {
                 </div>
 
                 {voucher.min_purchase > 0 && (
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-xs text-muted-foreground mb-2">
                     Min purchase: Rp {voucher.min_purchase.toLocaleString("id-ID")}
                   </p>
                 )}
 
-                {voucher.usage_limit && (
-                  <div className="mt-2">
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span>Used: {voucher.used_count}</span>
-                      <span>Limit: {voucher.usage_limit}</span>
+                {/* Usage tracking */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      <span className="text-muted-foreground">Usage</span>
                     </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1">
-                      <div
-                        className={`h-1 rounded-full ${
-                          index === 0 ? "bg-purple-600" : index === 1 ? "bg-emerald-600" : "bg-orange-600"
-                        }`}
-                        style={{
-                          width: `${Math.min((voucher.used_count / voucher.usage_limit) * 100, 100)}%`,
-                        }}
-                      />
-                    </div>
+                    <span className="font-medium">{getRemainingUses(voucher)}</span>
                   </div>
-                )}
+
+                  {voucher.usage_limit && (
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Used: {voucher.used_count}</span>
+                        <span>Limit: {voucher.usage_limit}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full transition-all duration-300 ${
+                            index === 0 ? "bg-purple-600" : index === 1 ? "bg-emerald-600" : "bg-orange-600"
+                          }`}
+                          style={{
+                            width: `${Math.min(getUsagePercentage(voucher), 100)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
               </CardContent>
 
               {/* Decorative elements */}

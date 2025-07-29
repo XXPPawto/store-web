@@ -1,11 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Ticket, Check, X, Percent, DollarSign } from "lucide-react"
+import { Ticket, Check, X, Percent, DollarSign, Sparkles } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "sonner"
 
@@ -33,6 +33,46 @@ interface VoucherInputProps {
 export function VoucherInput({ total, onVoucherApplied, appliedVoucher }: VoucherInputProps) {
   const [voucherCode, setVoucherCode] = useState("")
   const [loading, setLoading] = useState(false)
+  const [popularVouchers, setPopularVouchers] = useState<Voucher[]>([])
+  const [loadingPopular, setLoadingPopular] = useState(true)
+
+  useEffect(() => {
+    fetchPopularVouchers()
+  }, [])
+
+  const fetchPopularVouchers = async () => {
+    if (!supabase) {
+      setLoadingPopular(false)
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("vouchers")
+        .select("*")
+        .eq("is_active", true)
+        .or(`valid_until.is.null,valid_until.gte.${new Date().toISOString()}`)
+        .order("discount_value", { ascending: false })
+        .limit(4)
+
+      if (error) {
+        console.error("Error fetching popular vouchers:", error)
+        setLoadingPopular(false)
+        return
+      }
+
+      // Filter vouchers that haven't reached usage limit
+      const availableVouchers = (data || []).filter(
+        (voucher) => !voucher.usage_limit || voucher.used_count < voucher.usage_limit,
+      )
+
+      setPopularVouchers(availableVouchers)
+    } catch (error) {
+      console.error("Error fetching popular vouchers:", error)
+    } finally {
+      setLoadingPopular(false)
+    }
+  }
 
   const validateVoucher = async (code: string): Promise<{ valid: boolean; voucher?: Voucher; error?: string }> => {
     if (!supabase) {
@@ -78,6 +118,30 @@ export function VoucherInput({ total, onVoucherApplied, appliedVoucher }: Vouche
     }
   }
 
+  const updateVoucherUsage = async (voucherId: string): Promise<boolean> => {
+    if (!supabase) return false
+
+    try {
+      const { error } = await supabase
+        .from("vouchers")
+        .update({
+          used_count: supabase.raw("used_count + 1"),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", voucherId)
+
+      if (error) {
+        console.error("Error updating voucher usage:", error)
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.error("Error updating voucher usage:", error)
+      return false
+    }
+  }
+
   const calculateDiscount = (voucher: Voucher, total: number): number => {
     if (voucher.discount_type === "percentage") {
       const discount = (total * voucher.discount_value) / 100
@@ -87,8 +151,10 @@ export function VoucherInput({ total, onVoucherApplied, appliedVoucher }: Vouche
     }
   }
 
-  const handleApplyVoucher = async () => {
-    if (!voucherCode.trim()) {
+  const handleApplyVoucher = async (code?: string) => {
+    const codeToUse = code || voucherCode.trim()
+
+    if (!codeToUse) {
       toast.error("Please enter a voucher code")
       return
     }
@@ -96,7 +162,7 @@ export function VoucherInput({ total, onVoucherApplied, appliedVoucher }: Vouche
     setLoading(true)
 
     try {
-      const validation = await validateVoucher(voucherCode.trim())
+      const validation = await validateVoucherCode(codeToUse)
 
       if (!validation.valid || !validation.voucher) {
         toast.error(validation.error || "Invalid voucher code")
@@ -105,15 +171,39 @@ export function VoucherInput({ total, onVoucherApplied, appliedVoucher }: Vouche
       }
 
       const discount = calculateDiscount(validation.voucher, total)
-      onVoucherApplied(validation.voucher, discount)
+
+      // Update voucher usage count
+      const updateSuccess = await updateVoucherUsage(validation.voucher.id)
+
+      if (!updateSuccess) {
+        toast.error("Failed to apply voucher. Please try again.")
+        setLoading(false)
+        return
+      }
+
+      // Update the voucher object with incremented used_count for UI
+      const updatedVoucher = {
+        ...validation.voucher,
+        used_count: validation.voucher.used_count + 1,
+      }
+
+      onVoucherApplied(updatedVoucher, discount)
       toast.success(`Voucher "${validation.voucher.code}" applied! You saved Rp ${discount.toLocaleString("id-ID")}`)
       setVoucherCode("")
+
+      // Refresh popular vouchers to update usage counts
+      await fetchPopularVouchers()
     } catch (error) {
       console.error("Error applying voucher:", error)
       toast.error("Failed to apply voucher")
     } finally {
       setLoading(false)
     }
+  }
+
+  // Separate validation function to avoid confusion
+  const validateVoucherCode = async (code: string) => {
+    return await validateVoucher(code)
   }
 
   const handleRemoveVoucher = () => {
@@ -126,6 +216,17 @@ export function VoucherInput({ total, onVoucherApplied, appliedVoucher }: Vouche
       return `${voucher.discount_value}% OFF`
     }
     return `Rp ${voucher.discount_value.toLocaleString("id-ID")} OFF`
+  }
+
+  const getVoucherAvailability = (voucher: Voucher) => {
+    if (!voucher.usage_limit) return "Unlimited"
+    const remaining = voucher.usage_limit - voucher.used_count
+    return `${remaining} left`
+  }
+
+  const isVoucherAvailable = (voucher: Voucher) => {
+    if (!voucher.usage_limit) return true
+    return voucher.used_count < voucher.usage_limit
   }
 
   return (
@@ -146,8 +247,13 @@ export function VoucherInput({ total, onVoucherApplied, appliedVoucher }: Vouche
                 onChange={(e) => setVoucherCode(e.target.value.toUpperCase())}
                 className="flex-1"
                 disabled={loading}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter") {
+                    handleApplyVoucher()
+                  }
+                }}
               />
-              <Button onClick={handleApplyVoucher} disabled={loading || !voucherCode.trim()}>
+              <Button onClick={() => handleApplyVoucher()} disabled={loading || !voucherCode.trim()}>
                 {loading ? "Checking..." : "Apply"}
               </Button>
             </div>
@@ -185,45 +291,51 @@ export function VoucherInput({ total, onVoucherApplied, appliedVoucher }: Vouche
       {/* Popular Vouchers */}
       <Card>
         <CardContent className="p-4">
-          <h4 className="font-semibold mb-3 text-sm">Popular Vouchers</h4>
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setVoucherCode("WELCOME10")}
-              className="text-xs h-8"
-              disabled={!!appliedVoucher}
-            >
-              WELCOME10
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setVoucherCode("SAVE20K")}
-              className="text-xs h-8"
-              disabled={!!appliedVoucher}
-            >
-              SAVE20K
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setVoucherCode("STUDENT15")}
-              className="text-xs h-8"
-              disabled={!!appliedVoucher}
-            >
-              STUDENT15
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setVoucherCode("MEGA50")}
-              className="text-xs h-8"
-              disabled={!!appliedVoucher}
-            >
-              MEGA50
-            </Button>
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="h-4 w-4 text-purple-600" />
+            <h4 className="font-semibold text-sm">Popular Vouchers</h4>
           </div>
+
+          {loadingPopular ? (
+            <div className="grid grid-cols-2 gap-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="h-8 bg-muted animate-pulse rounded" />
+              ))}
+            </div>
+          ) : popularVouchers.length > 0 ? (
+            <div className="grid grid-cols-2 gap-2">
+              {popularVouchers.map((voucher) => (
+                <div key={voucher.id} className="relative">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVoucherCode(voucher.code)}
+                    className="text-xs h-8 w-full relative"
+                    disabled={!!appliedVoucher || !isVoucherAvailable(voucher)}
+                  >
+                    <div className="flex flex-col items-center">
+                      <span className="font-mono font-bold">{voucher.code}</span>
+                      <span className="text-xs text-muted-foreground">{getVoucherAvailability(voucher)}</span>
+                    </div>
+                  </Button>
+
+                  {/* Usage indicator */}
+                  {voucher.usage_limit && (
+                    <div className="absolute -top-1 -right-1">
+                      <Badge
+                        variant="secondary"
+                        className="text-xs px-1 py-0 h-4 min-w-4 flex items-center justify-center"
+                      >
+                        {voucher.usage_limit - voucher.used_count}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-2">No vouchers available at the moment</p>
+          )}
         </CardContent>
       </Card>
     </div>

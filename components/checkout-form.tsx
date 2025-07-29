@@ -45,6 +45,15 @@ export function CheckoutForm({ total }: CheckoutFormProps) {
       .map((item) => `${item.name} x${item.quantity} - Rp ${(item.price * item.quantity).toLocaleString("id-ID")}`)
       .join("\n")
 
+    let voucherInfo = ""
+    if (appliedVoucher && discount > 0) {
+      voucherInfo = `🎫 *Voucher Applied: ${appliedVoucher.code}*
+💰 *Discount: -Rp ${discount.toLocaleString("id-ID")}*
+📝 *Voucher: ${appliedVoucher.name}*
+
+`
+    }
+
     const message = `🛒 *New Order - XPawto Store*
 
 👤 *Customer Info:*
@@ -56,7 +65,7 @@ WhatsApp: ${customerInfo.whatsapp}
 ${orderDetails}
 
 💰 *Subtotal: Rp ${total.toLocaleString("id-ID")}*
-${discount > 0 ? `🎫 *Discount (${appliedVoucher?.code}): -Rp ${discount.toLocaleString("id-ID")}*\n` : ""}💳 *Total: Rp ${finalTotal.toLocaleString("id-ID")}*
+${voucherInfo}💳 *Final Total: Rp ${finalTotal.toLocaleString("id-ID")}*
 💳 *Payment Method: ${paymentMethods.find((p) => p.id === paymentMethod)?.name}*
 
 Please confirm this order and provide payment instructions.`
@@ -65,7 +74,13 @@ Please confirm this order and provide payment instructions.`
 
     window.open(whatsappUrl, "_blank")
     clearCart()
-    toast.success("Order sent to WhatsApp!")
+
+    // Show success message with voucher info
+    if (appliedVoucher) {
+      toast.success(`Order sent! You saved Rp ${discount.toLocaleString("id-ID")} with voucher ${appliedVoucher.code}!`)
+    } else {
+      toast.success("Order sent to WhatsApp!")
+    }
   }
 
   return (
@@ -141,6 +156,13 @@ Please confirm this order and provide payment instructions.`
               <span>Total:</span>
               <span className="text-emerald-600">Rp {finalTotal.toLocaleString("id-ID")}</span>
             </div>
+            {discount > 0 && (
+              <div className="text-center">
+                <span className="text-sm text-emerald-600 font-medium">
+                  🎉 You saved Rp {discount.toLocaleString("id-ID")} with voucher {appliedVoucher?.code}!
+                </span>
+              </div>
+            )}
           </div>
           <Button onClick={handleCheckout} className="w-full mt-4" size="lg">
             Checkout via WhatsApp
