@@ -286,3 +286,18 @@
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
+
+/* Scroll indicator animation */
+@keyframes scroll-hint {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+}
+
+.scroll-hint {
+  animation: scroll-hint 1s ease-in-out infinite;
+}

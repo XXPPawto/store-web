@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { ShoppingCart, Menu, X, Store, BarChart3, Heart, Search } from "lucide-react"
+import { ShoppingCart, Menu, X, Store, BarChart3, Heart, Search, Home, Package, MessageSquare } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -75,17 +75,17 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
   }
 
   const navItems = [
-    { href: "/", label: "Home" },
-    { href: "/products", label: "Products" },
-    { href: "/wishlist", label: "Wishlist" },
-    { href: "/testimonials", label: "Reviews" },
+    { href: "/", label: "Home", icon: Home },
+    { href: "/products", label: "Products", icon: Package },
+    { href: "/wishlist", label: "Wishlist", icon: Heart, badge: wishlistCount },
+    { href: "/testimonials", label: "Reviews", icon: MessageSquare },
   ]
 
   return (
     <>
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4">
-          <div className="flex h-14 md:h-16 items-center justify-between gap-4">
+          <div className="flex h-14 md:h-16 items-center justify-between gap-2 md:gap-4">
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity flex-shrink-0">
               <div className="flex items-center space-x-2">
@@ -93,25 +93,25 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
                   <Store className="h-4 w-4 md:h-5 md:w-5 text-white" />
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-lg md:text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                    XPawto Store
+                  <span className="text-base md:text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                    XPawto
                   </span>
-                  <span className="text-xs text-muted-foreground hidden lg:block">Premium Roblox Pets</span>
+                  <span className="text-xs text-muted-foreground hidden lg:block">Premium Pets</span>
                 </div>
               </div>
             </Link>
 
-            {/* Search Bar - Desktop & Mobile */}
+            {/* Search Bar - Desktop Only */}
             {showSearch && (
-              <div className="flex-1 max-w-md mx-4">
-                <div className="relative">
+              <div className="hidden md:flex flex-1 max-w-md mx-4">
+                <div className="relative w-full">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                   <Input
                     type="text"
                     placeholder="Search products..."
                     value={localSearchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="pl-10 pr-10 h-9 md:h-10"
+                    className="pl-10 pr-10 h-10"
                   />
                   {localSearchQuery && (
                     <Button
@@ -133,39 +133,28 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
                 <Link
                   key={item.href}
                   href={item.href}
-                  className="text-sm font-medium hover:text-emerald-600 transition-colors relative group whitespace-nowrap"
+                  className="text-sm font-medium hover:text-emerald-600 transition-colors relative group whitespace-nowrap flex items-center gap-1"
                 >
+                  <item.icon className="h-4 w-4" />
                   {item.label}
+                  {item.badge && item.badge > 0 && (
+                    <Badge className="ml-1 h-4 w-4 rounded-full p-0 text-xs flex items-center justify-center bg-red-500">
+                      {item.badge}
+                    </Badge>
+                  )}
                   <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-emerald-600 transition-all group-hover:w-full" />
                 </Link>
               ))}
             </nav>
 
             {/* Right side actions */}
-            <div className="flex items-center space-x-1 md:space-x-2 flex-shrink-0">
-              {/* Wishlist Button */}
-              <Link href="/wishlist">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="relative hover:bg-emerald-50 dark:hover:bg-emerald-950 w-8 h-8 md:w-10 md:h-10"
-                >
-                  <Heart className="h-4 w-4 md:h-5 md:w-5" />
-                  {wishlistCount > 0 && (
-                    <Badge className="absolute -top-1 -right-1 md:-top-2 md:-right-2 h-4 w-4 md:h-5 md:w-5 rounded-full p-0 text-xs flex items-center justify-center bg-red-500">
-                      {wishlistCount}
-                    </Badge>
-                  )}
-                  <span className="sr-only">Wishlist</span>
-                </Button>
-              </Link>
-
-              {/* Compare Button */}
+            <div className="flex items-center space-x-1 flex-shrink-0">
+              {/* Compare Button - Desktop Only */}
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={() => setShowComparison(true)}
-                className="relative hover:bg-emerald-50 dark:hover:bg-emerald-950 w-8 h-8 md:w-10 md:h-10"
+                className="relative hover:bg-emerald-50 dark:hover:bg-emerald-950 w-8 h-8 md:w-10 md:h-10 hidden md:flex"
               >
                 <BarChart3 className="h-4 w-4 md:h-5 md:w-5" />
                 {compareCount > 0 && (
@@ -176,7 +165,7 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
                 <span className="sr-only">Product comparison</span>
               </Button>
 
-              {/* Cart */}
+              {/* Cart - Always Visible */}
               <Link href="/cart">
                 <Button
                   variant="ghost"
@@ -206,6 +195,32 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
             </div>
           </div>
 
+          {/* Mobile Search Bar - Below header when search is enabled */}
+          {showSearch && (
+            <div className="md:hidden py-3 border-t">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  type="text"
+                  placeholder="Search products..."
+                  value={localSearchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="pl-10 pr-10 h-9"
+                />
+                {localSearchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearSearch}
+                    className="absolute right-1 top-1/2 transform -translate-y-1/2 h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Mobile Navigation */}
           {isMenuOpen && (
             <div className="md:hidden border-t py-4 animate-in slide-in-from-top-2">
@@ -214,12 +229,35 @@ export function Header({ onSearch, searchQuery = "", showSearch = false }: Heade
                   <Link
                     key={item.href}
                     href={item.href}
-                    className="text-sm font-medium hover:text-emerald-600 transition-colors px-2 py-1 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                    className="text-sm font-medium hover:text-emerald-600 transition-colors px-2 py-2 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950 flex items-center gap-3"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    {item.label}
+                    <item.icon className="h-5 w-5" />
+                    <span>{item.label}</span>
+                    {item.badge && item.badge > 0 && (
+                      <Badge className="ml-auto h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center bg-red-500">
+                        {item.badge}
+                      </Badge>
+                    )}
                   </Link>
                 ))}
+
+                {/* Compare Button in Mobile Menu */}
+                <button
+                  onClick={() => {
+                    setShowComparison(true)
+                    setIsMenuOpen(false)
+                  }}
+                  className="text-sm font-medium hover:text-emerald-600 transition-colors px-2 py-2 rounded hover:bg-emerald-50 dark:hover:bg-emerald-950 flex items-center gap-3 w-full text-left"
+                >
+                  <BarChart3 className="h-5 w-5" />
+                  <span>Compare Products</span>
+                  {compareCount > 0 && (
+                    <Badge className="ml-auto h-5 w-5 rounded-full p-0 text-xs flex items-center justify-center bg-emerald-600">
+                      {compareCount}
+                    </Badge>
+                  )}
+                </button>
               </nav>
             </div>
           )}
